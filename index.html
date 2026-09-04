@@ -1,0 +1,2313 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Zombie Typing Survival</title>
+
+<style>
+
+*{
+    box-sizing:border-box;
+    margin:0;
+    padding:0;
+}
+
+body{
+    overflow:hidden;
+    background:#080b0c;
+    color:white;
+    font-family:Arial,sans-serif;
+}
+
+canvas{
+    display:block;
+}
+
+/* ================= HUD ================= */
+
+#hud{
+    position:fixed;
+    top:18px;
+    left:18px;
+    z-index:10;
+    pointer-events:none;
+}
+
+.title{
+    font-size:24px;
+    font-weight:bold;
+    letter-spacing:2px;
+    color:#e33;
+    margin-bottom:12px;
+    text-shadow:0 0 10px #900;
+}
+
+.stat{
+    font-size:17px;
+    margin:6px 0;
+    text-shadow:2px 2px 3px #000;
+}
+
+#healthBox{
+    width:230px;
+    height:18px;
+    background:#222;
+    border:2px solid #ddd;
+    border-radius:5px;
+    overflow:hidden;
+    margin-top:4px;
+}
+
+#health{
+    width:100%;
+    height:100%;
+    background:#d62828;
+    transition:.15s;
+}
+
+/* ================= START SCREEN ================= */
+
+#screen{
+    position:fixed;
+    inset:0;
+    z-index:30;
+
+    background:
+        radial-gradient(
+            circle,
+            rgba(90,20,20,.25),
+            rgba(0,0,0,.96)
+        );
+
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    flex-direction:column;
+    text-align:center;
+}
+
+#screen h1{
+    font-size:64px;
+    color:#e33;
+    letter-spacing:5px;
+
+    text-shadow:
+        0 0 15px #700,
+        0 0 40px #300;
+
+    margin-bottom:15px;
+}
+
+#screen p{
+    color:#aaa;
+    font-size:18px;
+    line-height:1.7;
+    margin-bottom:25px;
+}
+
+button{
+    padding:15px 38px;
+    border:0;
+    border-radius:8px;
+
+    background:#c92727;
+    color:white;
+
+    font-size:19px;
+    font-weight:bold;
+
+    cursor:pointer;
+    transition:.2s;
+}
+
+button:hover{
+    background:#ed3838;
+    transform:scale(1.04);
+}
+
+/* ================= HELP ================= */
+
+#help{
+    position:fixed;
+    bottom:18px;
+    right:20px;
+
+    z-index:10;
+
+    color:#777;
+    text-align:right;
+
+    font-size:13px;
+    line-height:1.6;
+
+    pointer-events:none;
+}
+
+/* ================= TYPING FLASH ================= */
+
+#typingFlash{
+    position:fixed;
+    top:20px;
+    left:50%;
+
+    transform:translateX(-50%);
+
+    font-size:15px;
+    font-weight:bold;
+
+    color:#65e879;
+
+    opacity:0;
+
+    pointer-events:none;
+
+    transition:.15s;
+
+    z-index:20;
+
+    text-shadow:
+        0 0 10px #000;
+}
+
+</style>
+</head>
+
+<body>
+
+<canvas id="game"></canvas>
+
+
+<!-- ================= HUD ================= -->
+
+<div id="hud">
+
+    <div class="title">
+        ZOMBIE SURVIVAL
+    </div>
+
+    <div class="stat">
+        ❤️ Health
+    </div>
+
+    <div id="healthBox">
+        <div id="health"></div>
+    </div>
+
+    <div class="stat">
+        🧟 Wave:
+        <span id="wave">1</span>
+    </div>
+
+    <div class="stat">
+        ☠️ Kills:
+        <span id="kills">0</span>
+    </div>
+
+    <div class="stat">
+        ⭐ Score:
+        <span id="score">0</span>
+    </div>
+
+</div>
+
+
+<div id="typingFlash"></div>
+
+
+<div id="help">
+
+    TYPE THE WORDS ON THE ZOMBIES<br>
+    No clicking required
+
+</div>
+
+
+<!-- ================= START SCREEN ================= -->
+
+<div id="screen">
+
+    <h1>
+        ZOMBIE SURVIVAL
+    </h1>
+
+    <p>
+        🧟 Zombies are coming...<br>
+        Type any word you see above a zombie<br>
+        and kill it.
+    </p>
+
+    <button id="start">
+        START SURVIVAL
+    </button>
+
+</div>
+
+
+<script>
+
+/* =====================================================
+   CANVAS
+===================================================== */
+
+const canvas =
+    document.getElementById("game");
+
+const ctx =
+    canvas.getContext("2d");
+
+
+let W,H;
+
+
+function resize(){
+
+    W =
+        canvas.width =
+        window.innerWidth;
+
+    H =
+        canvas.height =
+        window.innerHeight;
+
+}
+
+
+resize();
+
+
+window.addEventListener(
+    "resize",
+    resize
+);
+
+
+/* =====================================================
+   WORD DATABASE
+===================================================== */
+
+const easyWords = [
+
+    "RUN",
+    "DEAD",
+    "BITE",
+    "HELP",
+    "DARK",
+    "BLOOD",
+    "NIGHT",
+    "FAST",
+    "FEAR",
+    "ZOMBIE",
+    "FIRE",
+    "KILL",
+    "RUN",
+    "DIE"
+
+];
+
+
+const mediumWords = [
+
+    "HUNTER",
+    "SURVIVE",
+    "ESCAPE",
+    "ATTACK",
+    "DANGER",
+    "KILLER",
+    "MONSTER",
+    "DEATH",
+    "RUNNER",
+    "SHADOW",
+    "BLOODY",
+    "FIGHT",
+    "DEMON",
+    "HORROR"
+
+];
+
+
+const hardWords = [
+
+    "APOCALYPSE",
+    "HEADSHOT",
+    "NIGHTMARE",
+    "SURVIVOR",
+    "INFECTION",
+    "QUARANTINE",
+    "ABANDONED",
+    "UNDEAD",
+    "OUTBREAK",
+    "GRAVEYARD",
+    "DESOLATION",
+    "INFECTED",
+    "ARMAGEDDON"
+
+];
+
+
+function getWord(){
+
+    let list;
+
+
+    /*
+       Early waves:
+       Short words
+
+       Later waves:
+       Longer words
+    */
+
+    if(wave < 3){
+
+        list = easyWords;
+
+    }
+
+    else if(wave < 6){
+
+        list = mediumWords;
+
+    }
+
+    else{
+
+        list = hardWords;
+
+    }
+
+
+    /*
+       Avoid duplicate words
+       currently visible.
+    */
+
+    const available =
+        list.filter(word =>
+            !zombies.some(
+                z => !z.dead &&
+                z.word === word
+            )
+        );
+
+
+    if(available.length > 0){
+
+        return available[
+            Math.floor(
+                Math.random() *
+                available.length
+            )
+        ];
+
+    }
+
+
+    return list[
+        Math.floor(
+            Math.random()*list.length
+        )
+    ];
+
+}
+
+
+/* =====================================================
+   GAME VARIABLES
+===================================================== */
+
+let player;
+
+let zombies=[];
+
+let particles=[];
+
+let running=false;
+
+let wave=1;
+
+let kills=0;
+
+let score=0;
+
+let waveTimer=0;
+
+let spawnTimer=0;
+
+let lastTime=0;
+
+
+/*
+   GLOBAL TYPING STATE
+
+   No selected target.
+
+   The game automatically figures out
+   which zombie matches the typed letters.
+*/
+
+let typing="";
+
+let typingTarget=null;
+
+
+/* =====================================================
+   PLAYER
+===================================================== */
+
+function resetPlayer(){
+
+    player={
+
+        x:W/2,
+
+        y:H/2,
+
+        r:20,
+
+        health:100,
+
+        maxHealth:100
+
+    };
+
+}
+
+
+/* =====================================================
+   RESET GAME
+===================================================== */
+
+function resetGame(){
+
+    resetPlayer();
+
+    zombies=[];
+
+    particles=[];
+
+    wave=1;
+
+    kills=0;
+
+    score=0;
+
+    waveTimer=0;
+
+    spawnTimer=0;
+
+    typing="";
+
+    typingTarget=null;
+
+    updateHUD();
+
+}
+
+
+/* =====================================================
+   RANDOM EDGE
+===================================================== */
+
+function randomEdge(){
+
+    const side =
+        Math.floor(
+            Math.random()*4
+        );
+
+
+    if(side===0){
+
+        return{
+            x:-60,
+            y:Math.random()*H
+        };
+
+    }
+
+
+    if(side===1){
+
+        return{
+            x:W+60,
+            y:Math.random()*H
+        };
+
+    }
+
+
+    if(side===2){
+
+        return{
+            x:Math.random()*W,
+            y:-60
+        };
+
+    }
+
+
+    return{
+
+        x:Math.random()*W,
+
+        y:H+60
+
+    };
+
+}
+
+
+/* =====================================================
+   SPAWN ZOMBIE
+===================================================== */
+
+function spawnZombie(){
+
+    const pos =
+        randomEdge();
+
+
+    /*
+       Very slow at beginning.
+
+       Speed increases gradually
+       with wave.
+    */
+
+    const baseSpeed =
+        0.20 +
+        wave*0.038;
+
+
+    let speed =
+        baseSpeed +
+        Math.random()*0.08;
+
+
+    let type="normal";
+
+
+    /*
+       Runner appears later.
+    */
+
+    if(
+        wave>=4 &&
+        Math.random()<0.15
+    ){
+
+        type="runner";
+
+    }
+
+
+    /*
+       Tank appears much later.
+    */
+
+    if(
+        wave>=7 &&
+        Math.random()<0.10
+    ){
+
+        type="tank";
+
+    }
+
+
+    const z={
+
+        x:pos.x,
+
+        y:pos.y,
+
+        word:getWord(),
+
+        typed:"",
+
+        speed:speed,
+
+        type:type,
+
+        dead:false,
+
+        death:0,
+
+        hitFlash:0,
+
+        wobble:Math.random()*Math.PI*2
+
+    };
+
+
+    if(type==="normal"){
+
+        z.r=23;
+
+        z.health=1;
+
+    }
+
+
+    if(type==="runner"){
+
+        z.r=19;
+
+        z.speed*=1.30;
+
+        z.health=1;
+
+    }
+
+
+    if(type==="tank"){
+
+        z.r=31;
+
+        z.speed*=0.70;
+
+        z.health=2;
+
+    }
+
+
+    zombies.push(z);
+
+}
+
+
+/* =====================================================
+   GLOBAL TYPING SYSTEM
+===================================================== */
+
+
+/*
+   Find zombies whose word starts with
+   the currently typed text.
+*/
+
+function findMatchingZombies(text){
+
+    return zombies.filter(z =>
+
+        !z.dead &&
+
+        z.word.startsWith(text)
+
+    );
+
+}
+
+
+/*
+   Find closest matching zombie.
+*/
+
+function closestMatch(matches){
+
+    let best=null;
+
+    let bestDistance=Infinity;
+
+
+    for(const z of matches){
+
+        const distance =
+            Math.hypot(
+                z.x-player.x,
+                z.y-player.y
+            );
+
+
+        if(distance<bestDistance){
+
+            bestDistance=distance;
+
+            best=z;
+
+        }
+
+    }
+
+
+    return best;
+
+}
+
+
+/*
+   Keyboard input.
+*/
+
+window.addEventListener(
+    "keydown",
+    function(e){
+
+        if(!running)
+            return;
+
+
+        /*
+           Ignore CTRL / ALT / SHIFT etc.
+        */
+
+        if(e.key.length!==1)
+            return;
+
+
+        const letter =
+            e.key.toUpperCase();
+
+
+        /*
+           =================================================
+           CASE 1
+           Already typing a zombie word
+           =================================================
+        */
+
+        if(typing.length>0){
+
+            const nextText =
+                typing+letter;
+
+
+            const matches =
+                findMatchingZombies(
+                    nextText
+                );
+
+
+            /*
+               Correct continuation.
+            */
+
+            if(matches.length>0){
+
+                typing=nextText;
+
+
+                /*
+                   Choose closest matching zombie.
+                */
+
+                typingTarget =
+                    closestMatch(matches);
+
+
+                /*
+                   Show progress directly
+                   above zombie.
+                */
+
+                if(typingTarget){
+
+                    typingTarget.typed =
+                        typing;
+
+                }
+
+
+                /*
+                   Check complete word.
+                */
+
+                if(
+                    typingTarget &&
+                    typing ===
+                    typingTarget.word
+                ){
+
+                    killZombie(
+                        typingTarget
+                    );
+
+                    typing="";
+
+                    typingTarget=null;
+
+                }
+
+
+                updateTypingFlash();
+
+                return;
+
+            }
+
+
+            /*
+               No word continues with
+               current typing.
+
+               Instead of resetting,
+               try this new letter
+               as a fresh word start.
+            */
+
+            const freshMatches =
+                findMatchingZombies(
+                    letter
+                );
+
+
+            if(freshMatches.length>0){
+
+                /*
+                   Smooth recovery.
+                */
+
+                clearTypingMarks();
+
+
+                typing=letter;
+
+
+                typingTarget =
+                    closestMatch(
+                        freshMatches
+                    );
+
+
+                if(typingTarget){
+
+                    typingTarget.typed =
+                        typing;
+
+                }
+
+
+                updateTypingFlash();
+
+                return;
+
+            }
+
+
+            /*
+               Completely invalid key.
+
+               Do nothing.
+
+               This prevents frustrating resets.
+            */
+
+            return;
+
+        }
+
+
+        /*
+           =================================================
+           CASE 2
+           No word currently being typed
+           =================================================
+        */
+
+        const matches =
+            findMatchingZombies(
+                letter
+            );
+
+
+        if(matches.length===0){
+
+            return;
+
+        }
+
+
+        /*
+           Start typing the matching word.
+        */
+
+        typing=letter;
+
+
+        typingTarget =
+            closestMatch(matches);
+
+
+        if(typingTarget){
+
+            typingTarget.typed=
+                typing;
+
+        }
+
+
+        /*
+           One-letter word support.
+        */
+
+        if(
+            typingTarget &&
+            typingTarget.word===typing
+        ){
+
+            killZombie(
+                typingTarget
+            );
+
+            typing="";
+
+            typingTarget=null;
+
+        }
+
+
+        updateTypingFlash();
+
+    }
+);
+
+
+/* =====================================================
+   CLEAR TYPING MARKS
+===================================================== */
+
+function clearTypingMarks(){
+
+    for(const z of zombies){
+
+        z.typed="";
+
+    }
+
+}
+
+
+/* =====================================================
+   KILL ZOMBIE
+===================================================== */
+
+function killZombie(z){
+
+    if(!z || z.dead)
+        return;
+
+
+    /*
+       Tank requires two completed words.
+
+       This gives later waves special enemies.
+    */
+
+    if(
+        z.type==="tank" &&
+        z.health>1
+    ){
+
+        z.health--;
+
+        z.hitFlash=15;
+
+        z.typed="";
+
+        createExplosion(
+            z.x,
+            z.y,
+            15
+        );
+
+
+        /*
+           After first hit,
+           allow another word.
+        */
+
+        typing="";
+
+        typingTarget=null;
+
+        return;
+
+    }
+
+
+    z.dead=true;
+
+    z.death=0;
+
+    z.typed="";
+
+
+    kills++;
+
+
+    score +=
+
+        z.type==="tank"
+        ? 100
+
+        : z.type==="runner"
+        ? 50
+
+        : 25;
+
+
+    createExplosion(
+        z.x,
+        z.y,
+        25
+    );
+
+
+    typing="";
+
+    typingTarget=null;
+
+
+    updateHUD();
+
+}
+
+
+/* =====================================================
+   PARTICLES
+===================================================== */
+
+function createExplosion(
+    x,
+    y,
+    amount
+){
+
+    for(
+        let i=0;
+        i<amount;
+        i++
+    ){
+
+        particles.push({
+
+            x:x,
+
+            y:y,
+
+            vx:
+                (Math.random()-.5)*5,
+
+            vy:
+                (Math.random()-.5)*5,
+
+            life:
+                25+
+                Math.random()*25,
+
+            size:
+                2+
+                Math.random()*5
+
+        });
+
+    }
+
+}
+
+
+/* =====================================================
+   UPDATE
+===================================================== */
+
+function update(dt){
+
+    if(!running)
+        return;
+
+
+    /* ==============================
+       SPAWN
+    ============================== */
+
+    spawnTimer-=dt;
+
+
+    /*
+       Gradually increase zombie count.
+    */
+
+    const maxZombies =
+        Math.min(
+            2+
+            Math.floor(wave*.75),
+            14
+        );
+
+
+    const alive =
+        zombies.filter(
+            z=>!z.dead
+        ).length;
+
+
+    if(
+        spawnTimer<=0 &&
+        alive<maxZombies
+    ){
+
+        spawnZombie();
+
+
+        /*
+           Slow spawning.
+
+           Later waves spawn faster.
+        */
+
+        spawnTimer =
+            Math.max(
+                32-wave*1.25,
+                10
+            );
+
+    }
+
+
+    /* ==============================
+       WAVE
+    ============================== */
+
+    waveTimer+=dt;
+
+
+    /*
+       25 seconds per wave.
+    */
+
+    if(waveTimer>=1500){
+
+        wave++;
+
+        waveTimer=0;
+
+        score+=wave*25;
+
+        createWaveText();
+
+        updateHUD();
+
+    }
+
+
+    /* ==============================
+       ZOMBIES
+    ============================== */
+
+    for(
+        let i=zombies.length-1;
+        i>=0;
+        i--
+    ){
+
+        const z=
+            zombies[i];
+
+
+        /*
+           Death animation.
+        */
+
+        if(z.dead){
+
+            z.death+=dt;
+
+            z.r*=0.94;
+
+
+            if(z.death>30){
+
+                zombies.splice(i,1);
+
+            }
+
+            continue;
+
+        }
+
+
+        const dx=
+            player.x-z.x;
+
+
+        const dy=
+            player.y-z.y;
+
+
+        const distance=
+            Math.hypot(dx,dy);
+
+
+        /*
+           Move toward player.
+        */
+
+        if(
+            distance>
+            player.r+z.r
+        ){
+
+            z.x +=
+                dx/distance*
+                z.speed*
+                dt;
+
+
+            z.y +=
+                dy/distance*
+                z.speed*
+                dt;
+
+        }
+
+
+        /*
+           Attack.
+
+           VERY slow damage.
+        */
+
+        else{
+
+            const damage=
+
+                z.type==="tank"
+
+                ? 0.045
+
+                : z.type==="runner"
+
+                ? 0.030
+
+                : 0.025;
+
+
+            player.health -=
+                damage*dt;
+
+
+            if(
+                player.health<=0
+            ){
+
+                player.health=0;
+
+                updateHUD();
+
+                gameOver();
+
+                return;
+
+            }
+
+        }
+
+
+        z.wobble+=
+            0.04*dt;
+
+
+        if(z.hitFlash>0)
+            z.hitFlash-=dt;
+
+    }
+
+
+    /* ==============================
+       PARTICLES
+    ============================== */
+
+    for(
+        let i=particles.length-1;
+        i>=0;
+        i--
+    ){
+
+        const p=
+            particles[i];
+
+
+        p.x+=p.vx*dt;
+
+        p.y+=p.vy*dt;
+
+        p.life-=dt;
+
+
+        if(p.life<=0){
+
+            particles.splice(i,1);
+
+        }
+
+    }
+
+
+    updateHUD();
+
+}
+
+
+/* =====================================================
+   BACKGROUND
+===================================================== */
+
+function drawBackground(){
+
+    ctx.fillStyle="#101718";
+
+    ctx.fillRect(
+        0,
+        0,
+        W,
+        H
+    );
+
+
+    /*
+       Ground grid.
+    */
+
+    ctx.strokeStyle="#1a2425";
+
+    ctx.lineWidth=1;
+
+
+    for(
+        let x=0;
+        x<W;
+        x+=55
+    ){
+
+        ctx.beginPath();
+
+        ctx.moveTo(x,0);
+
+        ctx.lineTo(x,H);
+
+        ctx.stroke();
+
+    }
+
+
+    for(
+        let y=0;
+        y<H;
+        y+=55
+    ){
+
+        ctx.beginPath();
+
+        ctx.moveTo(0,y);
+
+        ctx.lineTo(W,y);
+
+        ctx.stroke();
+
+    }
+
+
+    /*
+       Roads.
+    */
+
+    ctx.fillStyle="#151c1d";
+
+
+    ctx.fillRect(
+        0,
+        H/2-65,
+        W,
+        130
+    );
+
+
+    ctx.fillRect(
+        W/2-65,
+        0,
+        130,
+        H
+    );
+
+
+    /*
+       Road lines.
+    */
+
+    ctx.strokeStyle="#363e3e";
+
+    ctx.lineWidth=3;
+
+    ctx.setLineDash([
+        25,
+        20
+    ]);
+
+
+    ctx.beginPath();
+
+    ctx.moveTo(
+        0,
+        H/2
+    );
+
+    ctx.lineTo(
+        W,
+        H/2
+    );
+
+    ctx.stroke();
+
+
+    ctx.beginPath();
+
+    ctx.moveTo(
+        W/2,
+        0
+    );
+
+    ctx.lineTo(
+        W/2,
+        H
+    );
+
+    ctx.stroke();
+
+
+    ctx.setLineDash([]);
+
+}
+
+
+/* =====================================================
+   PLAYER
+===================================================== */
+
+function drawPlayer(){
+
+    ctx.save();
+
+
+    ctx.translate(
+        player.x,
+        player.y
+    );
+
+
+    /*
+       Shadow.
+    */
+
+    ctx.fillStyle=
+        "rgba(0,0,0,.5)";
+
+
+    ctx.beginPath();
+
+    ctx.ellipse(
+        0,
+        12,
+        25,
+        12,
+        0,
+        0,
+        Math.PI*2
+    );
+
+    ctx.fill();
+
+
+    /*
+       Body.
+    */
+
+    ctx.fillStyle="#3e82d1";
+
+
+    ctx.beginPath();
+
+    ctx.arc(
+        0,
+        0,
+        player.r,
+        0,
+        Math.PI*2
+    );
+
+    ctx.fill();
+
+
+    /*
+       Head.
+    */
+
+    ctx.fillStyle="#f0bd91";
+
+
+    ctx.beginPath();
+
+    ctx.arc(
+        0,
+        -3,
+        11,
+        0,
+        Math.PI*2
+    );
+
+    ctx.fill();
+
+
+    /*
+       Jacket outline.
+    */
+
+    ctx.strokeStyle="#91bdf0";
+
+    ctx.lineWidth=3;
+
+
+    ctx.beginPath();
+
+    ctx.arc(
+        0,
+        0,
+        player.r-3,
+        0,
+        Math.PI*2
+    );
+
+    ctx.stroke();
+
+
+    ctx.restore();
+
+}
+
+
+/* =====================================================
+   ZOMBIE
+===================================================== */
+
+function drawZombie(z){
+
+    ctx.save();
+
+
+    ctx.translate(
+        z.x,
+        z.y
+    );
+
+
+    /*
+       Death animation.
+    */
+
+    if(z.dead){
+
+        ctx.globalAlpha=
+            Math.max(
+                0,
+                1-z.death/30
+            );
+
+
+        ctx.rotate(
+            z.death*.15
+        );
+
+    }
+
+
+    /*
+       Shadow.
+    */
+
+    ctx.fillStyle=
+        "rgba(0,0,0,.5)";
+
+
+    ctx.beginPath();
+
+    ctx.ellipse(
+        0,
+        z.r*.75,
+        z.r*1.15,
+        z.r*.4,
+        0,
+        0,
+        Math.PI*2
+    );
+
+    ctx.fill();
+
+
+    /*
+       Body colors.
+    */
+
+    let bodyColor="#4b7547";
+
+
+    if(z.type==="runner")
+        bodyColor="#6f9149";
+
+
+    if(z.type==="tank")
+        bodyColor="#663b3b";
+
+
+    if(z.hitFlash>0)
+        bodyColor="#ffffff";
+
+
+    /*
+       Body.
+    */
+
+    ctx.fillStyle=
+        bodyColor;
+
+
+    ctx.beginPath();
+
+    ctx.arc(
+        0,
+        0,
+        z.r,
+        0,
+        Math.PI*2
+    );
+
+    ctx.fill();
+
+
+    /*
+       Head.
+    */
+
+    ctx.fillStyle="#829b61";
+
+
+    ctx.beginPath();
+
+    ctx.arc(
+        0,
+        -z.r*.55,
+        z.r*.65,
+        0,
+        Math.PI*2
+    );
+
+    ctx.fill();
+
+
+    /*
+       Eyes.
+    */
+
+    ctx.fillStyle="#e22";
+
+
+    ctx.beginPath();
+
+
+    ctx.arc(
+        -z.r*.24,
+        -z.r*.65,
+        3,
+        0,
+        Math.PI*2
+    );
+
+
+    ctx.arc(
+        z.r*.24,
+        -z.r*.65,
+        3,
+        0,
+        Math.PI*2
+    );
+
+
+    ctx.fill();
+
+
+    /*
+       Mouth.
+    */
+
+    ctx.strokeStyle="#292929";
+
+    ctx.lineWidth=2;
+
+
+    ctx.beginPath();
+
+    ctx.arc(
+        0,
+        -z.r*.28,
+        z.r*.3,
+        0,
+        Math.PI
+    );
+
+    ctx.stroke();
+
+
+    /* =================================================
+       WORD ABOVE ZOMBIE
+    ================================================= */
+
+    ctx.font=
+        "bold 17px Arial";
+
+
+    ctx.textAlign="center";
+
+
+    const fullWord =
+        z.word;
+
+
+    const typedPart =
+        z.typed || "";
+
+
+    const remaining =
+        fullWord.substring(
+            typedPart.length
+        );
+
+
+    const totalWidth =
+        ctx.measureText(
+            fullWord
+        ).width;
+
+
+    const boxWidth =
+        Math.max(
+            90,
+            totalWidth+24
+        );
+
+
+    /*
+       Word background.
+    */
+
+    ctx.fillStyle=
+        z===typingTarget
+
+        ? "rgba(0,70,20,.82)"
+
+        : "rgba(0,0,0,.72)";
+
+
+    ctx.fillRect(
+        -boxWidth/2,
+        -z.r-53,
+        boxWidth,
+        31
+    );
+
+
+    /*
+       Target outline.
+    */
+
+    if(z===typingTarget){
+
+        ctx.strokeStyle="#65e879";
+
+        ctx.lineWidth=2;
+
+        ctx.strokeRect(
+            -boxWidth/2,
+            -z.r-53,
+            boxWidth,
+            31
+        );
+
+    }
+
+
+    /*
+       Draw typed letters.
+    */
+
+    const typedWidth =
+        ctx.measureText(
+            typedPart
+        ).width;
+
+
+    const startX =
+        -totalWidth/2;
+
+
+    ctx.textAlign="left";
+
+
+    ctx.fillStyle="#65e879";
+
+
+    ctx.fillText(
+        typedPart,
+        startX,
+        -z.r-31
+    );
+
+
+    /*
+       Remaining letters.
+    */
+
+    ctx.fillStyle="#ffffff";
+
+
+    ctx.fillText(
+        remaining,
+        startX+typedWidth,
+        -z.r-31
+    );
+
+
+    /*
+       Small hint under typed word
+       when this zombie is selected.
+    */
+
+    if(z===typingTarget){
+
+        ctx.font=
+            "bold 11px Arial";
+
+        ctx.textAlign="center";
+
+        ctx.fillStyle=
+            "rgba(101,232,121,.85)";
+
+
+        ctx.fillText(
+            "TYPE",
+            0,
+            -z.r-58
+        );
+
+    }
+
+
+    ctx.restore();
+
+}
+
+
+/* =====================================================
+   PARTICLES
+===================================================== */
+
+function drawParticles(){
+
+    for(const p of particles){
+
+        ctx.globalAlpha=
+            Math.max(
+                0,
+                p.life/45
+            );
+
+
+        ctx.fillStyle="#c92b2b";
+
+
+        ctx.beginPath();
+
+
+        ctx.arc(
+            p.x,
+            p.y,
+            p.size,
+            0,
+            Math.PI*2
+        );
+
+
+        ctx.fill();
+
+    }
+
+
+    ctx.globalAlpha=1;
+
+}
+
+
+/* =====================================================
+   WAVE MESSAGE
+===================================================== */
+
+let waveMessage="";
+
+let waveMessageTimer=0;
+
+
+function createWaveText(){
+
+    waveMessage=
+        "WAVE "+
+        wave+
+        " APPROACHING";
+
+
+    waveMessageTimer=120;
+
+}
+
+
+function updateWaveMessage(dt){
+
+    if(waveMessageTimer>0)
+        waveMessageTimer-=dt;
+
+}
+
+
+function drawWaveMessage(){
+
+    if(waveMessageTimer<=0)
+        return;
+
+
+    ctx.save();
+
+
+    ctx.globalAlpha=
+        Math.min(
+            1,
+            waveMessageTimer/30
+        );
+
+
+    ctx.textAlign="center";
+
+    ctx.font=
+        "bold 42px Arial";
+
+
+    ctx.fillStyle="#e33";
+
+
+    ctx.shadowColor="#900";
+
+    ctx.shadowBlur=20;
+
+
+    ctx.fillText(
+        waveMessage,
+        W/2,
+        100
+    );
+
+
+    ctx.restore();
+
+}
+
+
+/* =====================================================
+   TYPING FLASH
+===================================================== */
+
+function updateTypingFlash(){
+
+    const el =
+        document.getElementById(
+            "typingFlash"
+        );
+
+
+    if(
+        typingTarget &&
+        typing.length>0
+    ){
+
+        el.textContent =
+            typingTarget.word;
+
+
+        el.style.opacity="1";
+
+
+        clearTimeout(
+            updateTypingFlash.timer
+        );
+
+
+        updateTypingFlash.timer =
+            setTimeout(
+                ()=>{
+                    el.style.opacity="0";
+                },
+                350
+            );
+
+    }
+
+}
+
+
+/* =====================================================
+   HUD
+===================================================== */
+
+function updateHUD(){
+
+    if(!player)
+        return;
+
+
+    document.getElementById(
+        "health"
+    ).style.width=
+        Math.max(
+            0,
+            player.health
+        )+"%";
+
+
+    document.getElementById(
+        "wave"
+    ).textContent=
+        wave;
+
+
+    document.getElementById(
+        "kills"
+    ).textContent=
+        kills;
+
+
+    document.getElementById(
+        "score"
+    ).textContent=
+        score;
+
+}
+
+
+/* =====================================================
+   GAME OVER
+===================================================== */
+
+function gameOver(){
+
+    running=false;
+
+
+    typing="";
+
+    typingTarget=null;
+
+
+    clearTypingMarks();
+
+
+    document.querySelector(
+        "#screen h1"
+    ).textContent=
+        "YOU DIED";
+
+
+    document.querySelector(
+        "#screen p"
+    ).innerHTML=
+
+        `You survived until <b>Wave ${wave}</b><br>
+         ☠️ Kills: <b>${kills}</b><br>
+         ⭐ Score: <b>${score}</b>`;
+
+
+    document.getElementById(
+        "start"
+    ).textContent=
+        "PLAY AGAIN";
+
+
+    document.getElementById(
+        "screen"
+    ).style.display=
+        "flex";
+
+}
+
+
+/* =====================================================
+   START
+===================================================== */
+
+document.getElementById(
+    "start"
+).onclick=function(){
+
+    resetGame();
+
+
+    document.querySelector(
+        "#screen h1"
+    ).textContent=
+        "ZOMBIE SURVIVAL";
+
+
+    document.querySelector(
+        "#screen p"
+    ).innerHTML=
+
+        `🧟 Zombies are coming...<br>
+         Type any word you see above a zombie<br>
+         and kill it.`;
+
+
+    document.getElementById(
+        "start"
+    ).textContent=
+        "START SURVIVAL";
+
+
+    document.getElementById(
+        "screen"
+    ).style.display=
+        "none";
+
+
+    running=true;
+
+
+    lastTime=
+        performance.now();
+
+
+    requestAnimationFrame(
+        gameLoop
+    );
+
+};
+
+
+/* =====================================================
+   GAME LOOP
+===================================================== */
+
+function gameLoop(time){
+
+    if(!running)
+        return;
+
+
+    let dt=
+        (time-lastTime)/16.67;
+
+
+    dt=
+        Math.min(
+            dt,
+            2
+        );
+
+
+    lastTime=time;
+
+
+    update(dt);
+
+    updateWaveMessage(dt);
+
+    draw();
+
+
+    requestAnimationFrame(
+        gameLoop
+    );
+
+}
+
+
+/* =====================================================
+   DRAW
+===================================================== */
+
+function draw(){
+
+    drawBackground();
+
+
+    for(const z of zombies)
+        drawZombie(z);
+
+
+    drawPlayer();
+
+
+    drawParticles();
+
+
+    drawWaveMessage();
+
+
+    /*
+       Vignette.
+    */
+
+    const gradient=
+        ctx.createRadialGradient(
+            W/2,
+            H/2,
+            Math.min(W,H)*.2,
+            W/2,
+            H/2,
+            Math.max(W,H)*.75
+        );
+
+
+    gradient.addColorStop(
+        0,
+        "rgba(0,0,0,0)"
+    );
+
+
+    gradient.addColorStop(
+        1,
+        "rgba(0,0,0,.65)"
+    );
+
+
+    ctx.fillStyle=
+        gradient;
+
+
+    ctx.fillRect(
+        0,
+        0,
+        W,
+        H
+    );
+
+}
+
+
+/* =====================================================
+   INITIALIZE
+===================================================== */
+
+resetGame();
+
+draw();
+
+</script>
+
+</body>
+</html>
